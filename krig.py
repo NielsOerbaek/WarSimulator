@@ -1,5 +1,6 @@
 from random import shuffle
 from datetime import timedelta
+import time
 from tqdm import tqdm
 
 class Player():
@@ -27,15 +28,18 @@ class Game():
     def __init__(self, num_players=2, verbose=False):
         deck = self.make_deck()
         self.players = [Player(id=i+1) for i in range(num_players)]
+        
+        # Hand out cards to the players
         for i, c in enumerate(deck):
             self.players[i%num_players].get_loot([c])
+        
         self.turns = 0
         self.done = False
         self.verbose = verbose
-        self.limit = 50000
+        self.limit = 50000 # If the number of turns goes above this limit, we assume we're in an infinite cycle and exit.
         
     def make_deck(self):
-        deck = list(range(2,14))*4 + [15,15]
+        deck = list(range(2,15))*4 + [15,15]
         shuffle(deck)
         return deck
 
@@ -46,6 +50,7 @@ class Game():
             except ValueError:
                 return -1
         if self.verbose:
+            print(" "*150, end="\r")
             print("WE HAVE A WINNER: Player %d" % self.players[0].id)
             print("It only took us %d turns" % self.turns)
             print("At a rapid speed of 2 seconds per turn, that would take %s" % timedelta(seconds=2*self.turns))
@@ -57,7 +62,7 @@ class Game():
     
     def turn_cards(self, players):
         self.turns += 1 
-        if self.turns % 100 == 0:
+        if self.turns % 1 == 0:
             if self.verbose: self.print_score()
             if self.turns > self.limit:
                 raise ValueError
@@ -92,15 +97,24 @@ class Game():
             self.done = True
 
     def print_score(self):
+        print(" "*150, end="\r")
         score = "Turn %8d" % (self.turns)
+
         for p in self.players:
-            score += " - P%d: %d cards" % (p.id, p.worth())
+            score += " - P%d: %s" % (p.id, "|"*p.worth())
+            
+        potsize = 4*13+2 - sum([p.worth() for p in self.players])
+        score += " - War pot: %s" % ("|"*potsize)
         print(score, end="\r", flush=True)        
+        time.sleep(0.1)
         
 
         
 if __name__ == "__main__":
-    # Play 20,000 games of war.
+    # Do a single verbose game of four players.
+    Game(num_players=4, verbose=True).play()
+
+    # Play 20,000 silent games of war.
     turns = [Game().play() for _ in tqdm(range(20000))]
     finished = list(filter(lambda i: i > 0, turns))
     stalemate = list(filter(lambda i: i < 0, turns))
